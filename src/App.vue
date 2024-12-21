@@ -1,85 +1,147 @@
+
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
-import HelloWorld from './components/HelloWorld.vue'
+import { ref } from 'vue'
+import ViewImg from './ViewImg.vue';
+
+const list = ref({
+  folder:[{path:"", name:""}],
+  file:[{path:"", name:"", imgPath:"", isView:false}]
+});
+
+const isViewCom = ref(false);
+
+const pathlist = ["/"];
+
+window.addEventListener('popstate', function(event) {
+  console.log(event.state);
+  if(pathlist.length > 1){ 
+    pathlist.pop();
+  }
+  loadData(pathlist.join(""));
+
+  
+});
+
+window.addEventListener('beforeunload', (event) => {
+  // Cancel the event as stated by the standard.
+  event.preventDefault();
+  // Chrome requires returnValue to be set.
+  event.returnValue = '';
+});
+
+function loadData(url:string){
+ 
+fetch(url).then(e=>{
+ 
+  let type = e.headers.get("Content-Type");
+  console.log(type);
+  if(!e.ok || !(type&& type.includes("text/html"))){
+    return;
+  }
+ 
+
+  e.text().then(e=>{
+    let doc = document.implementation.createHTMLDocument("text");
+    doc.open();
+    doc.write(e);
+    doc.close();
+   
+    let ls = doc.getElementsByTagName("a");
+
+    let folder: typeof list.value.folder = [];
+  
+    let file: typeof list.value.file =[];
+    let baseUrl = pathlist.join("");
+    Array.from(ls).forEach(v=>{
+      let href = v.href;
+      let name = v.innerText;
+  
+    
+      if(href.endsWith("/")){
+        folder.push({
+          path:href,
+          name:name
+        });
+      }
+      else{
+        file.push({
+          path: href,
+          name:name,
+          imgPath:baseUrl+href,
+          isView:false
+
+        });
+      }
+    });
+
+    list.value.file = file;
+    list.value.folder=folder;
+
+    history.pushState({ page: 1 }, "");
+
+  }).catch(e=> console.log(e));
+}).catch(e=> console.log(e));
+
+
+}
+
+
+function cf(e:MouseEvent, path:string, isFolder:boolean){
+  e.preventDefault();
+
+  if(isFolder || path.endsWith(".zip")){
+    pathlist.push(path);
+ 
+   
+    loadData(pathlist.join(""));
+
+  }
+ 
+}
+
+loadData(pathlist.join(""));
+
+function setView(data:typeof list.value.file[0]){
+  if(data.name.includes(".jpg") || data.name.includes(".png") || data.name.includes(".gif")){
+    console.log("run");
+    data.isView=!data.isView;
+  }
+}
+
 </script>
 
 <template>
-  <header>
-    <img alt="Vue logo" class="logo" src="@/assets/logo.svg" width="125" height="125" />
-
-    <div class="wrapper">
-      <HelloWorld msg="You did it!" />
-
-      <nav>
-        <RouterLink to="/">Home</RouterLink>
-        <RouterLink to="/about">About</RouterLink>
-      </nav>
-    </div>
-  </header>
-
-  <RouterView />
+  <div>
+    <h2>设置</h2>
+    <button @click=" isViewCom = !isViewCom">isViewCom</button>
+    <label >isViewCom {{ isViewCom }}</label>
+  </div>
+  <div>
+    <h2>文件夹</h2>
+    <ul v-if="list && list.folder && true">
+      <li v-for="item of list.folder">
+        <a v-bind:href="item.path"  @click="(e)=> cf(e, item.path, true)">{{ item.name }}</a>
+      </li>
+    </ul>
+  </div>
+  <div>
+    <h2>文件</h2>
+    <ul v-if="list && list.file && true">
+      <li v-for="item of list.file">
+        <a v-bind:href="item.path" @click="(e)=> {cf(e, item.path, false); setView(item)}">{{ item.name }}</a>
+        <div v-if="item.isView">
+          
+          <img v-if="item.isView && !isViewCom" v-bind:src="item.imgPath"  height="500" ></img>
+          <ViewImg v-if="item.isView && isViewCom" :url="item.imgPath"></ViewImg>
+        </div>
+        
+      </li>
+    </ul>
+  </div>
 </template>
 
-<style scoped>
-header {
-  line-height: 1.5;
-  max-height: 100vh;
-}
+<style>
 
-.logo {
-  display: block;
-  margin: 0 auto 2rem;
-}
 
-nav {
-  width: 100%;
-  font-size: 12px;
-  text-align: center;
-  margin-top: 2rem;
-}
 
-nav a.router-link-exact-active {
-  color: var(--color-text);
-}
-
-nav a.router-link-exact-active:hover {
-  background-color: transparent;
-}
-
-nav a {
-  display: inline-block;
-  padding: 0 1rem;
-  border-left: 1px solid var(--color-border);
-}
-
-nav a:first-of-type {
-  border: 0;
-}
-
-@media (min-width: 1024px) {
-  header {
-    display: flex;
-    place-items: center;
-    padding-right: calc(var(--section-gap) / 2);
-  }
-
-  .logo {
-    margin: 0 2rem 0 0;
-  }
-
-  header .wrapper {
-    display: flex;
-    place-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  nav {
-    text-align: left;
-    margin-left: -1rem;
-    font-size: 1rem;
-
-    padding: 1rem 0;
-    margin-top: 1rem;
-  }
-}
 </style>
