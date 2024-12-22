@@ -3,141 +3,162 @@
 import { ref } from 'vue'
 import ViewImg from './ViewImg.vue';
 
-const list = ref({
-  folder:[{path:"", name:""}],
-  file:[{path:"", name:"", imgPath:"", isView:false}]
-});
+const list = ref([
+  {
+    "hash_value":"",
+    "isAllView":false,
 
-const isViewCom = ref(false);
 
-const pathlist = ["/"];
+    "files":[
+      {
+        "name":"",
 
-window.addEventListener('popstate', function(event) {
-  console.log(event.state);
-  if(pathlist.length > 1){ 
-    pathlist.pop();
-  }
-  loadData(pathlist.join(""));
-
-  
-});
-
-window.addEventListener('beforeunload', (event) => {
-  // Cancel the event as stated by the standard.
-  event.preventDefault();
-  // Chrome requires returnValue to be set.
-  event.returnValue = '';
-});
-
-function loadData(url:string){
- 
-fetch(url).then(e=>{
- 
-  let type = e.headers.get("Content-Type");
-  console.log(type);
-  if(!e.ok || !(type&& type.includes("text/html"))){
-    return;
-  }
- 
-
-  e.text().then(e=>{
-    let doc = document.implementation.createHTMLDocument("text");
-    doc.open();
-    doc.write(e);
-    doc.close();
-   
-    let ls = doc.getElementsByTagName("a");
-
-    let folder: typeof list.value.folder = [];
-  
-    let file: typeof list.value.file =[];
-    let baseUrl = pathlist.join("");
-    Array.from(ls).forEach(v=>{
-      let href = v.href;
-      let name = v.innerText;
-  
-    
-      if(href.endsWith("/")){
-        folder.push({
-          path:href,
-          name:name
-        });
+        "size":0
       }
-      else{
-        file.push({
-          path: href,
-          name:name,
-          imgPath:baseUrl+href,
-          isView:false
+      
+    ]
+  }
+]);
 
-        });
-      }
+const page = ref(0);
+
+
+
+
+list.value= [];
+
+let key = "";
+
+let changepageloadfunc = changekey;
+
+function changepage(is_up:boolean){
+
+  if(is_up){
+    page.value-=1;
+    changepageloadfunc();
+  }
+  else{
+    page.value+=1;
+    changepageloadfunc();
+  }
+}
+
+function changekey(){
+  page.value=0;
+  console.log("select", key);
+
+  changepageloadfunc = ()=> load(`/?key=${key}&page=${page.value}`);
+
+  changepageloadfunc();
+}
+
+function selectNew(){
+  page.value=0;
+
+  changepageloadfunc = ()=> load(`/?new=1&page=${page.value}`);
+
+  changepageloadfunc();
+}
+
+function load(url:string){
+  list.value=[];
+ 
+  fetch(url).then(e=>{
+
+  e.json().then((json)=> {
+
+
+    console.log(json);
+    const obj = <typeof list.value>json;
+    obj.forEach(v=> {v.files.sort((a,b)=> -(a.size- b.size))
+
+      v.isAllView=false;
+
     });
+    list.value= json;
 
-    list.value.file = file;
-    list.value.folder=folder;
-
-    history.pushState({ page: 1 }, "");
-
-  }).catch(e=> console.log(e));
-}).catch(e=> console.log(e));
+  });
+  });
 
 
 }
 
+function tosizestring(n:number){
 
-function cf(e:MouseEvent, path:string, isFolder:boolean){
-  e.preventDefault();
+  const N = 1024;
 
-  if(isFolder || path.endsWith(".zip")){
-    pathlist.push(path);
- 
-   
-    loadData(pathlist.join(""));
+
+  const byte = n;
+
+  if(byte < N){
+    return byte+":bytes";
+  }
+
+  const kb = Math.floor(byte/N);
+
+  if(kb< N){
+    return kb+":kb";
+
 
   }
- 
-}
 
-loadData(pathlist.join(""));
+  const mb = Math.floor(kb/N);
 
-function setView(data:typeof list.value.file[0]){
-  if(data.name.includes(".jpg") || data.name.includes(".png") || data.name.includes(".gif")){
-    console.log("run");
-    data.isView=!data.isView;
+  if(mb< N){
+    return mb+":mb";
+    
+
   }
+
+  const gb = Math.floor(mb/N);
+
+  if(gb< N){
+    return gb+":gb";
+    
+
+  }
+
+  return "big";
 }
+
+
+function changevalue(v:HTMLInputElement){
+  key = v.value;
+}
+
 
 </script>
 
 <template>
   <div>
-    <h2>设置</h2>
-    <button @click=" isViewCom = !isViewCom">isViewCom</button>
-    <label >isViewCom {{ isViewCom }}</label>
+    <input type="text" v-on:input="(e)=> changevalue(<any>e.target)">
+    <button type="button" v-on:click="(e)=> changekey()">搜索</button>
+    <button type="button" v-on:click="(e)=> selectNew()">新的</button>
   </div>
   <div>
-    <h2>文件夹</h2>
-    <ul v-if="list && list.folder && true">
-      <li v-for="item of list.folder">
-        <a v-bind:href="item.path"  @click="(e)=> cf(e, item.path, true)">{{ item.name }}</a>
-      </li>
-    </ul>
+    <button v-if="page > 0" type="button" v-on:click="(e)=> changepage(true)">上一页</button>
+    <label v-if="list.length!=0 && true">第{{page}}页</label>
+    <button v-if="list.length!=0 && true" type="button" v-on:click="(e)=>changepage(false)">下一页</button>
   </div>
   <div>
-    <h2>文件</h2>
-    <ul v-if="list && list.file && true">
-      <li v-for="item of list.file">
-        <a v-bind:href="item.path" @click="(e)=> {cf(e, item.path, false); setView(item)}">{{ item.name }}</a>
-        <div v-if="item.isView">
+    <ul v-if="list && true">
+      <li v-for="item of list">
+        <label>hash: {{ item.hash_value }}    count:{{ item.files.length }}</label>
+        <button v-if="item.files && item.files.length>=4" type="button" v-on:click="()=>item.isAllView= !item.isAllView">切换</button>
+        <ul v-if="item.files && true">
           
-          <img v-if="item.isView && !isViewCom" v-bind:src="item.imgPath"  height="500" ></img>
-          <ViewImg v-if="item.isView && isViewCom" :url="item.imgPath"></ViewImg>
-        </div>
-        
+          <li v-for="file of (item.isAllView ? item.files: item.files.filter((v, n, vs)=> n < 4))">
+            <p>          size:{{ tosizestring(file.size) }}   {{file.name}}</p>
+          </li>
+
+        </ul>
+
       </li>
+     
     </ul>
-  </div>
+    
+   </div> 
+   
 </template>
 
 <style>
