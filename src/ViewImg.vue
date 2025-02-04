@@ -1,7 +1,10 @@
 <script setup lang="ts">
-    defineProps(['url']);
+   const {url,urls } = defineProps<{
+  url?: string
+  urls?: string[]
+}>();
 
-
+    console.log(url, urls);
 
 </script>
 
