@@ -89,7 +89,7 @@ fetch(url).then(e=>{
 function cf(e:MouseEvent, path:string, isFolder:boolean){
   e.preventDefault();
 
-  if(isFolder || path.endsWith(".zip")){
+  if(isFolder || path.endsWith(".zip")||path.endsWith(".rar") || path.endsWith("7z")){
     pathlist.push(path);
  
    
