@@ -7,13 +7,13 @@ const list = ref([
   {
     "hash_value":"",
     "isAllView":false,
-
+    'count':0,
 
     "files":[
       {
         "name":"",
 
-        "size":0
+        "size":0,
       }
       
     ]
@@ -60,6 +60,15 @@ function selectNew(){
   changepageloadfunc();
 }
 
+
+function selectHot(){
+  page.value=0;
+
+  changepageloadfunc = ()=> load(`/?hot=1&page=${page.value}`);
+
+  changepageloadfunc();
+}
+
 function load(url:string){
   list.value=[];
  
@@ -70,9 +79,17 @@ function load(url:string){
 
     console.log(json);
     const obj = <typeof list.value>json;
-    obj.forEach(v=> {v.files.sort((a,b)=> -(a.size- b.size))
+    obj.forEach(v=> {
+      v.files.sort((a,b)=> -(a.size- b.size));
 
       v.isAllView=false;
+
+      if(v.count){
+
+      }
+      else{
+        v.count=0;
+      }
 
     });
     list.value= json;
@@ -134,6 +151,7 @@ function changevalue(v:HTMLInputElement){
     <input type="text" v-on:input="(e)=> changevalue(<any>e.target)">
     <button type="button" v-on:click="(e)=> changekey()">搜索</button>
     <button type="button" v-on:click="(e)=> selectNew()">新的</button>
+    <button type="button" v-on:click="(e)=> selectHot()">Hot</button>
   </div>
   <div>
     <button v-if="page > 0" type="button" v-on:click="(e)=> changepage(true)">上一页</button>
@@ -143,7 +161,8 @@ function changevalue(v:HTMLInputElement){
   <div>
     <ul v-if="list && true">
       <li v-for="item of list">
-        <label>hash: {{ item.hash_value }}    count:{{ item.files.length }}</label>
+        <label v-if="item.count ===0">hash: {{ item.hash_value }}    count:{{ item.files.length }}</label>
+        <label v-if="item.count !==0">hash: {{ item.hash_value }}  hot:{{ item.count }}   count:{{ item.files.length }}</label>
         <button v-if="item.files && item.files.length>=4" type="button" v-on:click="()=>item.isAllView= !item.isAllView">切换</button>
         <ul v-if="item.files && true">
           
@@ -158,7 +177,11 @@ function changevalue(v:HTMLInputElement){
     </ul>
     
    </div> 
-   
+   <div>
+    <button v-if="page > 0" type="button" v-on:click="(e)=> changepage(true)">上一页</button>
+    <label v-if="list.length!=0 && true">第{{page}}页</label>
+    <button v-if="list.length!=0 && true" type="button" v-on:click="(e)=>changepage(false)">下一页</button>
+  </div>
 </template>
 
 <style>
