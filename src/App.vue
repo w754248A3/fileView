@@ -100,9 +100,12 @@ function cf(e:MouseEvent, path:string, isFolder:boolean){
 }
 
 loadData(pathlist.join(""));
+function isImg(url:string){
+  return url.includes(".jpg") || url.includes(".png") || url.includes(".jpeg") || url.includes(".gif");
+}
 
 function setView(data:typeof list.value.file[0]){
-  if(data.name.includes(".jpg") || data.name.includes(".png") || data.name.includes(".gif")){
+  if(isImg(data.name)){
     console.log("run");
     data.isView=!data.isView;
   }
@@ -132,7 +135,7 @@ function setView(data:typeof list.value.file[0]){
         <div v-if="item.isView">
           
           <img v-if="item.isView && !isViewCom" v-bind:src="item.imgPath"  height="500" ></img>
-          <ViewImg v-if="item.isView && isViewCom" :url="item.imgPath" :urls="list.file.map(v=> v.imgPath)"></ViewImg>
+          <ViewImg v-if="item.isView && isViewCom" :url="item.imgPath" :urls="list.file.filter(v=> isImg(v.name)).map(v=> v.imgPath)"></ViewImg>
         </div>
         
       </li>
