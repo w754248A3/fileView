@@ -29,6 +29,19 @@ window.addEventListener('beforeunload', (event) => {
   event.returnValue = '';
 });
 
+//方法提取出字符串中所有的数字并相加, 返回相加的结果
+function sumNum(str:string){
+  let reg = /\d+/g;
+  let result = 0;
+  let arr = str.match(reg);
+  if(arr){
+    arr.forEach(v=>{
+      result += parseInt(v);
+    });
+  }
+  return result;
+}
+
 function loadData(url:string){
  
 fetch(url).then(e=>{
@@ -72,6 +85,12 @@ fetch(url).then(e=>{
 
         });
       }
+    });
+
+    file.sort((a,b)=>{
+      let aNum = sumNum(a.name);
+      let bNum = sumNum(b.name);
+      return aNum - bNum;
     });
 
     list.value.file = file;
