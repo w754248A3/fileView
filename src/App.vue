@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import ViewImg from './ViewImg.vue';
-
+import ViewVideo from './ViewVideo.vue';
 const list = ref({
   folder:[{path:"", name:""}],
   file:[{path:"", name:"", imgPath:"", isView:false}]
@@ -123,8 +123,14 @@ function isImg(url:string){
   return url.includes(".jpg") || url.includes(".png") || url.includes(".jpeg") || url.includes(".gif");
 }
 
+function isVideo(url:string){
+  url = url.toLowerCase();
+
+  return  url.includes(".mp4") ;
+}
+
 function setView(data:typeof list.value.file[0]){
-  if(isImg(data.name)){
+  if(isImg(data.name) || isVideo(data.name)){
     console.log("run");
     data.isView=!data.isView;
   }
@@ -151,7 +157,13 @@ function setView(data:typeof list.value.file[0]){
     <ul v-if="list && list.file && true">
       <li v-for="item of list.file">
         <a v-bind:href="item.path" @click="(e)=> {cf(e, item.path, false); setView(item)}">{{ item.name }}</a>
-        <div v-if="item.isView">
+        
+        <div v-if="item.isView&& isVideo(item.name)">
+          
+          
+          <ViewVideo v-if="item.isView && isViewCom" :url="item.imgPath"></ViewVideo>
+        </div>
+        <div v-if="item.isView&& isImg(item.name)">
           
           <img v-if="item.isView && !isViewCom" v-bind:src="item.imgPath"  height="500" ></img>
           <ViewImg v-if="item.isView && isViewCom" :url="item.imgPath" :urls="list.file.filter(v=> isImg(v.name)).map(v=> v.imgPath)"></ViewImg>
