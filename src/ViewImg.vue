@@ -1,13 +1,21 @@
 <script setup lang="ts">
-import { ref, useTemplateRef, onMounted } from 'vue'
+import { ref, useTemplateRef, onMounted, watch } from 'vue'
    const {url,urls } = defineProps<{
-  url?: string
-  urls?: string[]
+  url: string
+  urls: string[]
 }>();
 
     console.log(url, urls);
     const view_div = useTemplateRef("view_div");
     const viewUrl = ref(url);
+
+    const fileLiseElement = ref<HTMLElement[]>([]);
+
+
+    const setFileListElement = (e:Element|null, index:number) => {
+        
+        console.log("setFileListElement", e, index);
+    };
 
     const emit = defineEmits<{
         onClose: []
@@ -16,6 +24,23 @@ import { ref, useTemplateRef, onMounted } from 'vue'
     const onClose = () => {
         emit("onClose");
     };
+
+    const selectedIndex = ref(urls?.findIndex(item => item === viewUrl.value) || 0);
+
+    const getprevIndex = () => {
+        return (selectedIndex.value - 1 + urls.length) % urls.length;
+    };
+
+    const getnextIndex = () => {
+        return (selectedIndex.value + 1) % urls.length;
+    };
+
+    watch(selectedIndex, (newIndex) => {
+       
+        if (fileLiseElement.value[newIndex]) {
+            fileLiseElement.value[newIndex].scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+    });
 
     function f全屏(){
        
@@ -31,23 +56,20 @@ import { ref, useTemplateRef, onMounted } from 'vue'
     }
 
     function view_next(){
-        if(urls && urls.length !=0){
-            let a = urls.shift();
-            if(a){
-                urls.push(a);
-                viewUrl.value=a;
-            }          
-        }
+       
+        const nextIndex = getnextIndex();
+
+        viewUrl.value = urls[nextIndex];
+        selectedIndex.value = nextIndex;
+
     }
 
     function view_pre(){
-        if(urls && urls.length !=0){
-            let a = urls.pop();
-            if(a){
-                urls.unshift(a);
-                viewUrl.value=a;
-            }          
-        }
+        const prevIndex = getprevIndex();
+
+        viewUrl.value = urls[prevIndex];
+        selectedIndex.value = prevIndex;
+
     }
 
     //将浏览器可视窗口分为左右两个部位, 检测鼠标左键的单击, 假如在屏幕右侧单击, 调用函数1, 假如在屏幕左侧单击, 调用函数2
@@ -63,11 +85,27 @@ import { ref, useTemplateRef, onMounted } from 'vue'
     });
 
 
-    function f自动播放(){
-        
-        view_next();
-        setTimeout(f自动播放, 3000);
-    }
+    const isAutoPlay = ref(false);
+
+    const onSwitchAutoPaly= ()=>{
+        isAutoPlay.value = !isAutoPlay.value;
+       
+    };
+
+    const f自动播放 = () => {
+        if(isAutoPlay.value ===true){
+            
+            view_next();
+            setTimeout(f自动播放, 3000);
+        }
+        else{
+            setTimeout(f自动播放, 3000);
+        }
+     
+    };
+
+    f自动播放();
+
 
 </script>
 
@@ -79,8 +117,14 @@ import { ref, useTemplateRef, onMounted } from 'vue'
             <div class="viewimage-close" @click="onClose">关闭</div>
             <div class="viewimage-filelisttree">
             <ul>
-                <li v-for="(item, index) in urls" :key="index">
-                    <span @click="viewUrl = item">{{ item }}</span>
+                <li v-for="(item, index) in urls" 
+                    :key="index"
+                    :class="{ selected: selectedIndex === index }"
+                    class="viewimage-filelisttree-item"
+                    @click="viewUrl = item; selectedIndex = index"
+                    ref="fileLiseElement"
+                >
+                    {{ item }}
                 </li>
             </ul>
         </div>
@@ -92,7 +136,7 @@ import { ref, useTemplateRef, onMounted } from 'vue'
                 <button @click="view_pre()">上一张</button>
                 <button @click="view_next()">下一张</button>
                 <button @click="f全屏()" >全屏</button>
-                <button @click="f自动播放()" >自动播放</button>
+                <button @click="onSwitchAutoPaly" >切换自动播放</button>
             </div>
         </div>    
     </div>
@@ -137,6 +181,26 @@ import { ref, useTemplateRef, onMounted } from 'vue'
     flex: 9;
     max-height: 80vh;
     overflow-y: auto;
+   
+    list-style: none;
+}
+
+.viewimage-filelisttree-item {
+    padding: 8px 12px;
+    cursor: pointer;
+    white-space: nowrap;          /* 不换行 */
+
+}
+
+
+
+.list-item:hover {
+  background: #f5f5f5;
+}
+
+.selected {
+  background: #e6f7ff;
+  font-weight: bold;
 }
 
 
