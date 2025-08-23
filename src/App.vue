@@ -232,9 +232,7 @@ function setView(data:typeof list.value.file[0]){
           <ViewVideo v-if="item.isView" :url="item.imgPath" @on-close="item.isView=false"></ViewVideo>
         </div>
         <div v-if="item.isView&& isImg(item.name)">
-          
-          <img v-if="item.isView && !isViewCom" v-bind:src="item.imgPath"  height="500" ></img>
-          <ViewImg v-if="item.isView && isViewCom" :url="item.imgPath" :urls="list.file.filter(v=> isImg(v.name)).map(v=> v.imgPath)"></ViewImg>
+          <ViewImg @on-close="item.isView=false"  v-if="item.isView" :url="item.imgPath" :urls="list.file.filter(v=> isImg(v.name)).map(v=> v.imgPath)"></ViewImg>
         </div>
         
       </li>
