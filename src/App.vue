@@ -3,10 +3,8 @@
 import { ref } from 'vue'
 import ViewImg from './ViewImg.vue';
 import ViewVideo from './ViewVideo.vue';
-const list = ref({
-  folder:[{path:"", name:""}],
-  file:[{path:"", name:"", imgPath:"", isView:false}]
-});
+import type { FileListJSONData, ViewListData, ZIPListJSONData } from './types';
+const list = ref<ViewListData>({folder: [], file: []});
 
 const isViewCom = ref(false);
 
@@ -42,7 +40,95 @@ function sumNum(str:string){
   return result;
 }
 
-function loadData(url:string){
+
+const loadData = async (url:string) => {
+
+  function isZipFile(v:ZIPListJSONData):ZIPListJSONData | null{
+    if(v.index && v.path){
+      return v;
+    }
+    else{
+      return null;
+    }
+  }
+
+  function isNotZipFile(v:FileListJSONData):FileListJSONData | null{
+    if(v.isfolder && v.name){
+      return v;
+    }
+    else{
+      return null;
+    }
+  }
+
+
+  console.log("url", url);
+  const url2 = new URL(window.location.origin + url);
+
+  url2.searchParams.append("json", "1");
+  url = url2.href;
+
+  console.log("url2", url2.href);
+
+
+  const response = await fetch(url);
+  const type = response.headers.get("Content-Type");
+  console.log(type);
+  if(!response.ok || type !== "application/json"){
+    return;
+  }
+
+  const json = await response.json();
+
+    
+    if(isNotZipFile(json[0])){
+      const datalist = json as FileListJSONData[];
+      let baseUrl = pathlist.join("");
+      list.value.folder = datalist.filter(v=> v.isfolder).map(v=> {return {path: v.name+"/", name: v.name};});
+
+      list.value.file = datalist.filter(v=> !v.isfolder).map(v=> {return {path: v.name, name: v.name, imgPath:baseUrl+v.name, isView:false};});
+        list.value.file.sort((a,b)=>{
+          let aNum = sumNum(a.name);
+          let bNum = sumNum(b.name);
+          return aNum - bNum;
+        });
+
+        history.pushState({ page: 1 }, "");
+    }
+    else if(isZipFile(json[0])){
+      const datalist = json as ZIPListJSONData[];
+      let baseUrl = pathlist.join("");
+      list.value.folder = [];
+
+      list.value.file = datalist.map(v=> {
+
+        const path = `?Index=${v.index}`;
+
+        return {path: path, name: v.path, imgPath:baseUrl+path, isView:false};
+
+
+      });
+        list.value.file.sort((a,b)=>{
+          let aNum = sumNum(a.name);
+          let bNum = sumNum(b.name);
+          return aNum - bNum;
+        });
+
+        history.pushState({ page: 1 }, "");
+    }
+    else{
+      console.error("未知的json数据格式");
+    }
+
+    
+    
+};
+
+
+
+
+
+function loadData2(url:string){
  
 fetch(url).then(e=>{
  
@@ -109,7 +195,7 @@ function cf(e:MouseEvent, path:string, isFolder:boolean){
   e.preventDefault();
 
   if(isFolder || path.endsWith(".zip")||path.endsWith(".rar") || path.endsWith("7z")){
-    pathlist.push(path);
+    pathlist.push(encodeURIComponent(path));
  
    
     loadData(pathlist.join(""));
