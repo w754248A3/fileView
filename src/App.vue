@@ -6,6 +6,44 @@ import ViewVideo from './ViewVideo.vue';
 import type { FileListJSONData, ViewListData, ZIPListJSONData } from './types';
 const list = ref<ViewListData>({folder: [], file: []});
 
+
+const isCanViewImage = (()=>{
+
+  const imgExts = [".jpg", ".jpeg", ".png", ".gif"];
+  return (url:string) => {
+    return imgExts.some(ext => url.toLowerCase().endsWith(ext));
+  };
+
+})();
+
+
+const isCanViewVideo = (()=>{
+
+  const videoExts = [".mp4", ".webm", ".ogg"];
+  return (url:string) => {
+    return videoExts.some(ext => url.toLowerCase().endsWith(ext));
+  };
+
+})();
+
+
+const isCanOpenFile = (()=>{
+
+  const fileExts = [".zip", ".rar", ".7z"];
+  return (url:string) => {
+    return fileExts.some(ext => url.toLowerCase().endsWith(ext));
+  };
+
+})();
+
+
+const isNameCanView= (()=>{
+
+   return (url:string) => {
+      return isCanViewImage(url) || isCanViewVideo(url) || isCanOpenFile(url);
+    };
+})();
+
 const isViewCom = ref(false);
 
 const pathlist = ["/"];
@@ -84,10 +122,16 @@ const loadData = async (url:string) => {
     if(isNotZipFile(json[0])){
       const datalist = json as FileListJSONData[];
       let baseUrl = pathlist.join("");
-      list.value.folder = datalist.filter(v=> v.isfolder).map(v=> {return {path: v.name+"/", name: v.name};});
+     
+      list.value.folder = datalist.filter(v=> v.isfolder)
+      .map(v=> {return {path: v.name+"/", name: v.name};});
 
-      list.value.file = datalist.filter(v=> !v.isfolder).map(v=> {return {path: v.name, name: v.name, imgPath:baseUrl+v.name, isView:false};});
-        list.value.file.sort((a,b)=>{
+      list.value.file = datalist.filter(v=> !v.isfolder)
+      .filter(v=> isNameCanView(v.name))
+      .map(v=> {return {path: v.name, name: v.name, imgPath:baseUrl+v.name, isView:false};});
+       
+      
+      list.value.file.sort((a,b)=>{
           let aNum = sumNum(a.name);
           let bNum = sumNum(b.name);
           return aNum - bNum;
@@ -100,7 +144,8 @@ const loadData = async (url:string) => {
       let baseUrl = pathlist.join("");
       list.value.folder = [];
 
-      list.value.file = datalist.map(v=> {
+      list.value.file = datalist.filter(v=> isNameCanView(v.path))
+      .map(v=> {
 
         const path = `?Index=${v.index}`;
 
@@ -128,69 +173,6 @@ const loadData = async (url:string) => {
 
 
 
-function loadData2(url:string){
- 
-fetch(url).then(e=>{
- 
-  let type = e.headers.get("Content-Type");
-  console.log(type);
-  if(!e.ok || !(type&& type.includes("text/html"))){
-    return;
-  }
- 
-
-  e.text().then(e=>{
-    let doc = document.implementation.createHTMLDocument("text");
-    doc.open();
-    doc.write(e);
-    doc.close();
-   
-    let ls = doc.getElementsByTagName("a");
-
-    let folder: typeof list.value.folder = [];
-  
-    let file: typeof list.value.file =[];
-    let baseUrl = pathlist.join("");
-    Array.from(ls).forEach(v=>{
-      let href = v.href;
-      let name = v.innerText;
-  
-    
-      if(href.endsWith("/")){
-        folder.push({
-          path:href,
-          name:name
-        });
-      }
-      else{
-        file.push({
-          path: href,
-          name:name,
-          imgPath:baseUrl+href,
-          isView:false
-
-        });
-      }
-    });
-
-    file.sort((a,b)=>{
-      let aNum = sumNum(a.name);
-      let bNum = sumNum(b.name);
-      return aNum - bNum;
-    });
-
-    list.value.file = file;
-    list.value.folder=folder;
-
-    history.pushState({ page: 1 }, "");
-
-  }).catch(e=> console.log(e));
-}).catch(e=> console.log(e));
-
-
-}
-
-
 function cf(e:MouseEvent, path:string, isFolder:boolean){
   e.preventDefault();
 
@@ -206,7 +188,7 @@ function cf(e:MouseEvent, path:string, isFolder:boolean){
 
 loadData(pathlist.join(""));
 function isImg(url:string){
-  return url.includes(".jpg") || url.includes(".png") || url.includes(".jpeg") || url.includes(".gif");
+  return isCanViewImage(url);
 }
 
 function isVideo(url:string){
