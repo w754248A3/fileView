@@ -247,7 +247,7 @@ function setView(data:typeof list.value.file[0]){
         <div v-if="item.isView&& isVideo(item.name)">
           
           
-          <ViewVideo v-if="item.isView && isViewCom" :url="item.imgPath"></ViewVideo>
+          <ViewVideo v-if="item.isView" :url="item.imgPath" @on-close="item.isView=false"></ViewVideo>
         </div>
         <div v-if="item.isView&& isImg(item.name)">
           
