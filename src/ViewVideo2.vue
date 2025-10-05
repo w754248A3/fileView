@@ -42,19 +42,6 @@ import { ref, useTemplateRef, onMounted, watch } from 'vue'
         }
     });
 
-    function f全屏(){
-       
-        if(view_div.value){
-          
-            view_div.value.requestFullscreen();
-         
-        }
-        else{
-            console.log("view_div is null");
-        }
-        
-    }
-
     function view_next(){
        
         const nextIndex = getnextIndex();
@@ -72,40 +59,7 @@ import { ref, useTemplateRef, onMounted, watch } from 'vue'
 
     }
 
-    //将浏览器可视窗口分为左右两个部位, 检测鼠标左键的单击, 假如在屏幕右侧单击, 调用函数1, 假如在屏幕左侧单击, 调用函数2
-    window.addEventListener("click", function(e){
-        if(e.clientX > window.innerWidth/2){
-            console.log("right");
-            view_next();
-        }
-        else{
-            console.log("left");
-            view_pre();
-        }
-    });
-
-
-    const isAutoPlay = ref(false);
-
-    const onSwitchAutoPaly= ()=>{
-        isAutoPlay.value = !isAutoPlay.value;
-       
-    };
-
-    const f自动播放 = () => {
-        if(isAutoPlay.value ===true){
-            
-            view_next();
-            setTimeout(f自动播放, 3000);
-        }
-        else{
-            setTimeout(f自动播放, 3000);
-        }
-     
-    };
-
-    f自动播放();
-
+   
 
 </script>
 
@@ -135,8 +89,6 @@ import { ref, useTemplateRef, onMounted, watch } from 'vue'
             <div class="viewimage-controls">
                 <button @click="view_pre()">上一张</button>
                 <button @click="view_next()">下一张</button>
-                <button @click="f全屏()" >全屏</button>
-                <button @click="onSwitchAutoPaly" >切换自动播放</button>
             </div>
         </div>    
     </div>
