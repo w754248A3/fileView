@@ -3,6 +3,7 @@
 import { ref } from 'vue'
 import ViewImg from './ViewImg.vue';
 import ViewVideo from './ViewVideo.vue';
+import ViewVideo2 from './ViewVideo2.vue';
 import type { FileListJSONData, ViewListData, ZIPListJSONData } from './types';
 const list = ref<ViewListData>({folder: [], file: []});
 
@@ -43,8 +44,6 @@ const isNameCanView= (()=>{
       return isCanViewImage(url) || isCanViewVideo(url) || isCanOpenFile(url);
     };
 })();
-
-const isViewCom = ref(false);
 
 const pathlist = ["/"];
 
@@ -208,11 +207,6 @@ function setView(data:typeof list.value.file[0]){
 
 <template>
   <div>
-    <h2>设置</h2>
-    <button @click=" isViewCom = !isViewCom">isViewCom</button>
-    <label >isViewCom {{ isViewCom }}</label>
-  </div>
-  <div>
     <h2>文件夹</h2>
     <ul v-if="list && list.folder && true">
       <li v-for="item of list.folder">
@@ -229,7 +223,7 @@ function setView(data:typeof list.value.file[0]){
         <div v-if="item.isView&& isVideo(item.name)">
           
           
-          <ViewVideo v-if="item.isView" :url="item.imgPath" @on-close="item.isView=false"></ViewVideo>
+          <ViewVideo2 v-if="item.isView" :url="item.imgPath" @on-close="item.isView=false" :urls="list.file.filter(v=> isVideo(v.name)).map(v=> v.imgPath)"></ViewVideo2>
         </div>
         <div v-if="item.isView&& isImg(item.name)">
           <ViewImg @on-close="item.isView=false"  v-if="item.isView" :url="item.imgPath" :urls="list.file.filter(v=> isImg(v.name)).map(v=> v.imgPath)"></ViewImg>
