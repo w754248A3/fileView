@@ -47,15 +47,12 @@ const isNameCanView= (()=>{
 
 const pathlist = ["/"];
 
-window.addEventListener('popstate', function(event) {
-  console.log(event.state);
+const onUpPageButtonClick = () => {
   if(pathlist.length > 1){ 
     pathlist.pop();
+    loadData(pathlist.join(""));
   }
-  loadData(pathlist.join(""));
-
-  
-});
+};
 
 window.addEventListener('beforeunload', (event) => {
   // Cancel the event as stated by the standard.
@@ -136,7 +133,6 @@ const loadData = async (url:string) => {
           return aNum - bNum;
         });
 
-        history.pushState({ page: 1 }, "");
     }
     else if(isZipFile(json[0])){
       const datalist = json as ZIPListJSONData[];
@@ -158,7 +154,6 @@ const loadData = async (url:string) => {
           return aNum - bNum;
         });
 
-        history.pushState({ page: 1 }, "");
     }
     else{
       console.error("未知的json数据格式");
@@ -206,7 +201,12 @@ function setView(data:typeof list.value.file[0]){
 </script>
 
 <template>
-  <div>
+  <div  id="fileTree-root">
+    <div id="fileTree-header">
+      <button @click="onUpPageButtonClick">返回上一级</button>
+    </div>
+    <div id="fileTree-content">
+       <div>
     <h2>文件夹</h2>
     <ul v-if="list && list.folder && true">
       <li v-for="item of list.folder">
@@ -232,10 +232,25 @@ function setView(data:typeof list.value.file[0]){
       </li>
     </ul>
   </div>
+    </div>
+  </div>
 </template>
 
 <style>
+#fileTree-root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
 
+#fileTree-header {
+  flex-shrink: 0;
+}
 
-
+#fileTree-content {
+  flex: 1;
+  overflow: auto;
+  min-height: 0;
+}
 </style>
