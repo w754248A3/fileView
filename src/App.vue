@@ -1,324 +1,212 @@
 <script setup lang="ts">
-import { nextTick, ref, watch } from 'vue'
-import ViewImg from './ViewImg.vue';
-import ViewVideo from './ViewVideo.vue';
-import ViewVideo2 from './ViewVideo2.vue';
-import type { FileListJSONData, ViewListData, ZIPListJSONData } from './types';
-import { stringifyQuery } from 'vue-router';
-const list = ref<ViewListData>({ folder: [], file: [] });
+import { nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import ViewImg from './ViewImg.vue'
+import ViewVideo2 from './ViewVideo2.vue'
+import type { FileListJSONData, ViewListData, ZIPListJSONData } from './types'
 
+const IMAGE_EXTS = ['.jpg', '.jpeg', '.png', '.gif']
+const VIDEO_EXTS = ['.mp4', '.webm', '.ogg']
+const ARCHIVE_EXTS = ['.zip', '.rar', '.7z']
 
-const isCanViewImage = (() => {
+const list = ref<ViewListData>({ folder: [], file: [] })
+const upClickItem = ref<string | null>(null)
+const itemRefs = ref<Map<string, HTMLAnchorElement>>(new Map())
 
-  const imgExts = [".jpg", ".jpeg", ".png", ".gif"];
-  return (url: string) => {
-    return imgExts.some(ext => url.toLowerCase().endsWith(ext));
-  };
+// 判断扩展名是否匹配指定列表
+const matchExt = (url: string, exts: string[]) =>
+  exts.some(ext => url.toLowerCase().endsWith(ext))
 
-})();
+const isImage = (url: string) => matchExt(url, IMAGE_EXTS)
+const isVideo = (url: string) => matchExt(url, VIDEO_EXTS)
+const isArchive = (url: string) => matchExt(url, ARCHIVE_EXTS)
+const isSupportedFile = (url: string) => isImage(url) || isVideo(url) || isArchive(url)
 
+// 记录当前路径层级，便于回退和定位上一次点击的位置
+const pageStack = (() => {
+  const dataList = [{ path: '/', upClickItem: null as string | null }]
 
-const isCanViewVideo = (() => {
-
-  const videoExts = [".mp4", ".webm", ".ogg"];
-  return (url: string) => {
-    return videoExts.some(ext => url.toLowerCase().endsWith(ext));
-  };
-
-})();
-
-
-const isCanOpenFile = (() => {
-
-  const fileExts = [".zip", ".rar", ".7z"];
-  return (url: string) => {
-    return fileExts.some(ext => url.toLowerCase().endsWith(ext));
-  };
-
-})();
-
-
-const isNameCanView = (() => {
-
-  return (url: string) => {
-    return isCanViewImage(url) || isCanViewVideo(url) || isCanOpenFile(url);
-  };
-})();
-
-
-
-const currentPageData = (() => {
-
-  const dataList = [{
-    path: "/",
-    upClickItem: null as string | null,
-  }];
-
-  const getPath = () => {
-    return dataList.map(v => v.path).join("");
-  };
-
-  const push = (path: string) => {
-    dataList.push({ path: path, upClickItem: null });
-  };
-
+  const getPath = () => dataList.map(v => v.path).join('')
+  const push = (path: string) => dataList.push({ path, upClickItem: null })
   const pop = () => {
-    if (dataList.length > 1) {
-      dataList.pop();
-    }
-  };
-
-  const getCurrentData = () => {
-    return dataList[dataList.length - 1];
-  };
-
-  return {
-    getPath,
-    push,
-    pop,
-    getCurrentData,
+    if (dataList.length > 1) dataList.pop()
   }
-})();
+  const getCurrentData = () => dataList[dataList.length - 1]
 
-
-
-const upClickItem = ref<string | null>(null);
-const itemRefs = ref<Map<string, HTMLAnchorElement>>(new Map());
+  return { getPath, push, pop, getCurrentData }
+})()
 
 const setItemRef = (path: string, el: HTMLElement | null) => {
   if (el) {
-    itemRefs.value.set(path, el as HTMLAnchorElement);
+    itemRefs.value.set(path, el as HTMLAnchorElement)
   } else {
-    itemRefs.value.delete(path);
+    itemRefs.value.delete(path)
   }
-};
+}
 
 const scrollToVisited = () => {
-  const key = upClickItem.value;
-  if (!key) {
-    return;
-  }
-  const target = itemRefs.value.get(key);
-  target?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-};
+  const target = upClickItem.value ? itemRefs.value.get(upClickItem.value) : null
+  target?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+}
 
-watch(upClickItem, () => {
-  nextTick(scrollToVisited);
-});
-
+watch(upClickItem, () => nextTick(scrollToVisited))
 
 const onUpPageButtonClick = () => {
-
-
-
-
-
-  currentPageData.pop();
-
-
-  const data = currentPageData.getCurrentData();
-
-  upClickItem.value = data.upClickItem;
-
-  loadData(currentPageData.getPath());
-
-};
-
-window.addEventListener('beforeunload', (event) => {
-  // Cancel the event as stated by the standard.
-  event.preventDefault();
-  // Chrome requires returnValue to be set.
-  event.returnValue = '';
-});
-
-//方法提取出字符串中所有的数字并相加, 返回相加的结果
-function sumNum(str: string) {
-  let reg = /\d+/g;
-  let result = 0;
-  let arr = str.match(reg);
-  if (arr) {
-    arr.forEach(v => {
-      result += parseInt(v);
-    });
-  }
-  return result;
+  pageStack.pop()
+  const data = pageStack.getCurrentData()
+  upClickItem.value = data.upClickItem
+  loadData(pageStack.getPath())
 }
 
+// 提取字符串中的数字并求和，用于排序
+const sumNum = (str: string) => {
+  const matches = str.match(/\d+/g)
+  if (!matches) return 0
+  return matches.reduce((acc, cur) => acc + Number.parseInt(cur), 0)
+}
 
 const loadData = async (url: string) => {
+  const isZipFile = (v: ZIPListJSONData): v is ZIPListJSONData =>
+    Boolean(v?.index && v?.path)
+  const isFileList = (v: FileListJSONData): v is FileListJSONData =>
+    Boolean('isfolder' in v && 'name' in v)
 
-  function isZipFile(v: ZIPListJSONData): ZIPListJSONData | null {
-    if (v.index && v.path) {
-      return v;
-    }
-    else {
-      return null;
-    }
+  const requestUrl = new URL(window.location.origin + url)
+  requestUrl.searchParams.append('json', '1')
+
+  const response = await fetch(requestUrl.href)
+  const type = response.headers.get('Content-Type')
+  if (!response.ok || type !== 'application/json') return
+
+  const json = await response.json()
+  const currentPath = pageStack.getPath()
+
+  if (isFileList(json[0])) {
+    const dataList = json as FileListJSONData[]
+    list.value.folder = dataList
+      .filter(v => v.isfolder)
+      .map(v => ({ path: `${v.name}/`, name: v.name }))
+
+    list.value.file = dataList
+      .filter(v => !v.isfolder)
+      .filter(v => isSupportedFile(v.name))
+      .map(v => ({
+        path: v.name,
+        name: v.name,
+        imgPath: currentPath + v.name,
+        isView: false,
+      }))
+  } else if (isZipFile(json[0])) {
+    const dataList = json as ZIPListJSONData[]
+    list.value.folder = []
+    list.value.file = dataList
+      .filter(v => isSupportedFile(v.path))
+      .map(v => ({
+        path: `?Index=${v.index}`,
+        name: v.path,
+        imgPath: currentPath + `?Index=${v.index}`,
+        isView: false,
+      }))
+  } else {
+    console.error('未知的json数据格式')
   }
 
-  function isNotZipFile(v: FileListJSONData): FileListJSONData | null {
-    if (v.isfolder && v.name) {
-      return v;
-    }
-    else {
-      return null;
-    }
-  }
-
-
-  console.log("url", url);
-  const url2 = new URL(window.location.origin + url);
-
-  url2.searchParams.append("json", "1");
-  url = url2.href;
-
-  console.log("url2", url2.href);
-
-
-  const response = await fetch(url);
-  const type = response.headers.get("Content-Type");
-  console.log(type);
-  if (!response.ok || type !== "application/json") {
-    return;
-  }
-
-  const json = await response.json();
-
-
-  if (isNotZipFile(json[0])) {
-    const datalist = json as FileListJSONData[];
-    let baseUrl = currentPageData.getPath();
-
-    list.value.folder = datalist.filter(v => v.isfolder)
-      .map(v => { return { path: v.name + "/", name: v.name }; });
-
-    list.value.file = datalist.filter(v => !v.isfolder)
-      .filter(v => isNameCanView(v.name))
-      .map(v => { return { path: v.name, name: v.name, imgPath: baseUrl + v.name, isView: false }; });
-
-
-    list.value.file.sort((a, b) => {
-      let aNum = sumNum(a.name);
-      let bNum = sumNum(b.name);
-      return aNum - bNum;
-    });
-
-  }
-  else if (isZipFile(json[0])) {
-    const datalist = json as ZIPListJSONData[];
-    let baseUrl = currentPageData.getPath();
-    list.value.folder = [];
-
-    list.value.file = datalist.filter(v => isNameCanView(v.path))
-      .map(v => {
-
-        const path = `?Index=${v.index}`;
-
-        return { path: path, name: v.path, imgPath: baseUrl + path, isView: false };
-
-
-      });
-    list.value.file.sort((a, b) => {
-      let aNum = sumNum(a.name);
-      let bNum = sumNum(b.name);
-      return aNum - bNum;
-    });
-
-  }
-  else {
-    console.error("未知的json数据格式");
-  }
-
-  nextTick(scrollToVisited);
-};
-
-
-
-
-
-function cf(e: MouseEvent, path: string, isFolder: boolean) {
-  e.preventDefault();
-
-  const data = currentPageData.getCurrentData();
-
-  data.upClickItem = path;
-
-  if (isFolder || path.endsWith(".zip") || path.endsWith(".rar") || path.endsWith("7z")) {
-
-
-    currentPageData.push(encodeURIComponent(path));
-
-    loadData(currentPageData.getPath());
-
-  }
-  else {
-    upClickItem.value = path;
-  }
-
+  list.value.file.sort((a, b) => sumNum(a.name) - sumNum(b.name))
+  nextTick(scrollToVisited)
 }
 
-loadData(currentPageData.getPath());
-function isImg(url: string) {
-  return isCanViewImage(url);
-}
+const handleItemClick = (e: MouseEvent, path: string, isFolder: boolean) => {
+  e.preventDefault()
+  const current = pageStack.getCurrentData()
+  current.upClickItem = path
 
-function isVideo(url: string) {
-  url = url.toLowerCase();
-
-  return url.includes(".mp4");
-}
-
-function setView(data: typeof list.value.file[0]) {
-  if (isImg(data.name) || isVideo(data.name)) {
-    console.log("run");
-    data.isView = !data.isView;
+  if (isFolder || isArchive(path)) {
+    pageStack.push(encodeURIComponent(path))
+    loadData(pageStack.getPath())
+  } else {
+    upClickItem.value = path
   }
 }
-const isVisited = (path: string) => {
-  console.log("----", upClickItem.value, path);
-  return upClickItem.value === path;
-};
+
+const togglePreview = (item: typeof list.value.file[0]) => {
+  if (!isImage(item.name) && !isVideo(item.name)) return
+  item.isView = !item.isView
+}
+
+const isVisited = (path: string) => upClickItem.value === path
+
+// 首次加载数据并在离开前提示
+onMounted(() => {
+  loadData(pageStack.getPath())
+  window.addEventListener('beforeunload', handleBeforeUnload)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('beforeunload', handleBeforeUnload)
+})
+
+const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+  event.preventDefault()
+  event.returnValue = ''
+}
 </script>
 
 <template>
   <div id="fileTree-root">
-    <div id="fileTree-header">
+    <header id="fileTree-header">
       <button @click="onUpPageButtonClick">返回上一级</button>
-    </div>
-    <div id="fileTree-content">
-      <div>
+    </header>
+
+    <main id="fileTree-content">
+      <section>
         <h2>文件夹</h2>
-        <ul v-if="list && list.folder && true">
-          <li v-for="item of list.folder" :key="item.path">
-            <a v-bind:href="item.path" :class="{ visited: isVisited(item.path) }"
+        <ul v-if="list?.folder?.length">
+          <li v-for="item in list.folder" :key="item.path">
+            <a
+              :href="item.path"
+              :class="{ visited: isVisited(item.path) }"
               :ref="el => setItemRef(item.path, el as HTMLAnchorElement)"
-              @click="(e) => cf(e, item.path, true)">{{ item.name }}</a>
+              @click="e => handleItemClick(e, item.path, true)"
+            >
+              {{ item.name }}
+            </a>
           </li>
         </ul>
-      </div>
-      <div>
+      </section>
+
+      <section>
         <h2>文件</h2>
-        <ul v-if="list && list.file && true">
-          <li v-for="item of list.file" :key="item.path">
-            <a v-bind:href="item.path" :class="{ visited: isVisited(item.path) }"
+        <ul v-if="list?.file?.length">
+          <li v-for="item in list.file" :key="item.path">
+            <a
+              :href="item.path"
+              :class="{ visited: isVisited(item.path) }"
               :ref="el => setItemRef(item.path, el as HTMLAnchorElement)"
-              @click="(e) => { cf(e, item.path, false); setView(item) }">{{ item.name }}</a>
+              @click="e => { handleItemClick(e, item.path, false); togglePreview(item) }"
+            >
+              {{ item.name }}
+            </a>
 
             <div v-if="item.isView && isVideo(item.name)">
-
-
-              <ViewVideo2 v-if="item.isView" :url="item.imgPath" @on-close="item.isView = false"
-                :urls="list.file.filter(v => isVideo(v.name)).map(v => v.imgPath)"></ViewVideo2>
-            </div>
-            <div v-if="item.isView && isImg(item.name)">
-              <ViewImg @on-close="item.isView = false" v-if="item.isView" :url="item.imgPath"
-                :urls="list.file.filter(v => isImg(v.name)).map(v => v.imgPath)"></ViewImg>
+              <ViewVideo2
+                v-if="item.isView"
+                :url="item.imgPath"
+                :urls="list.file.filter(v => isVideo(v.name)).map(v => v.imgPath)"
+                @on-close="item.isView = false"
+              />
             </div>
 
+            <div v-if="item.isView && isImage(item.name)">
+              <ViewImg
+                v-if="item.isView"
+                :url="item.imgPath"
+                :urls="list.file.filter(v => isImage(v.name)).map(v => v.imgPath)"
+                @on-close="item.isView = false"
+              />
+            </div>
           </li>
         </ul>
-      </div>
-    </div>
+      </section>
+    </main>
   </div>
 </template>
 
