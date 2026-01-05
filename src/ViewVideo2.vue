@@ -58,6 +58,25 @@ watch(
   }
 )
 
+
+function addQueryParam(url:string, key:string, value:string) {
+    const u = new URL(url, location.href); // 支持相对 / 绝对 URL
+    u.searchParams.set(key, value);        // 已存在则覆盖，不存在则新增
+    return u.toString();
+  }
+
+
+const ib_url = ref(addQueryParam(viewUrl.value, "ib","1"));
+
+
+
+watch(viewUrl, (newValue)=>{
+
+  
+
+  ib_url.value =addQueryParam(newValue, "ib", "1");
+});
+
 onMounted(() => scrollToSelected(selectedIndex.value))
 </script>
 
@@ -99,6 +118,7 @@ onMounted(() => scrollToSelected(selectedIndex.value))
       <div class="viewvideo-controls">
         <button @click="viewPrev">上一段</button>
         <button @click="viewNext">下一段</button>
+        <span><a :href="ib_url">按位取反链接</a></span>
       </div>
     </div>
   </div>
