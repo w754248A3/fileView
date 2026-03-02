@@ -54,6 +54,87 @@ const requestFullscreen = () => {
   })
 }
 
+const postDleteName = async ()=>{
+
+  const path = viewUrl.value;
+
+  const url = new URL(path, window.location.origin);
+
+  
+  url.searchParams.append("set", "1");
+
+
+
+  console.log(path, url.toString());
+
+  const res = await fetch(url, {
+    method:"POST"
+  });
+
+  const json = await res.json();
+  if(json.resultCode){
+    window.alert("成功");
+  }
+  else{
+    window.alert("失败");
+  }
+};
+
+
+const downloadJSON =(jsonString:string)=>{
+
+
+const blob = new Blob([jsonString], {
+  type: "application/json"
+});
+
+const url = URL.createObjectURL(blob);
+const a = document.createElement("a");
+a.href = url;
+a.download = "data.json";
+
+document.body.appendChild(a);
+a.click();
+
+setTimeout(()=>{
+  
+document.body.removeChild(a);
+URL.revokeObjectURL(url);
+
+},3000);
+
+};
+
+const downloadDeleteNameList =async()=>{
+
+  
+  const path = viewUrl.value;
+
+  const url = new URL(path, window.location.origin);
+
+  
+  url.searchParams.append("get", "1");
+
+
+
+  console.log(path, url.toString());
+
+  const res = await fetch(url, {
+    method:"POST"
+  });
+
+  const json = await res.json();
+  if(json.resultCode){
+    
+    const s = JSON.stringify(json, null, 2);
+
+    downloadJSON(s);
+  }
+  else{
+    window.alert("失败");
+  }
+};
+
 const toggleAutoPlay = () => {
   isAutoPlay.value = !isAutoPlay.value
   if (isAutoPlay.value) {
@@ -150,6 +231,8 @@ onBeforeUnmount(() => {
         <button @click="toggleAutoPlay">
           {{ isAutoPlay ? '暂停自动播放' : '切换自动播放' }}
         </button>
+        <button @click="postDleteName">标记为待删除</button>
+        <button @click="downloadDeleteNameList">下载待删除列表</button>
       </div>
     </div>
   </div>
