@@ -10,6 +10,11 @@ const emit = defineEmits<{
   (e: 'onClose'): void
 }>()
 
+const ref_canvas=ref<HTMLCanvasElement>();
+
+const ref_canvas_box=ref<HTMLDivElement>();
+
+
 const viewContainerRef = ref<HTMLElement | null>(null)
 const listItemRefs = ref<Array<HTMLElement | null>>([])
 const viewUrl = ref(props.url)
@@ -174,6 +179,204 @@ const toggleCollapse = () => {
   isCollapsed.value = !isCollapsed.value
 }
 
+
+const compressImage= (file:Blob, maxWidth = 250, quality = 0.8)=> {
+  return new Promise<Blob>(async (resolve, reject) => {
+
+    const  img = await createImageBitmap(file);
+    const scalingRatio = (maxWidth/img.width);
+
+      // 计算缩放比例（保持原比例）
+      let width = img.width*scalingRatio;
+      let height = img.height*scalingRatio;
+      
+
+      // 创建 canvas
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      if(!ctx){
+
+        reject(Error("canvas.getContext is null"));
+        return;
+      }
+      ctx.drawImage(img, 0, 0, width, height);
+    
+      // 导出压缩后的 Blob（推荐用于上传）
+      canvas.toBlob((blob) => {
+
+        if(!blob){
+          reject(Error("canvas.toBlob is null"));
+          return;
+        }
+
+        resolve(blob); // blob 就是压缩后的图片文件
+      }, 'image/jpeg', quality); // 改成 'image/webp' 也可以
+    
+    
+  });
+}
+
+
+const startLoad=async(url_vs:string[], iscanncel:()=> boolean, func:(id:number, blob:Blob)=>void)=>{
+
+  const maxCount =4;
+  
+  const vs = url_vs.map((v,i)=> {return{v,i, isover:false, blob:(null as any)};});
+  
+  let index=0;
+
+  let count=0;
+
+  let cursor=0;
+
+  const start=()=>{
+
+    for (let index = cursor; index < vs.length && iscanncel()===false; index++) {
+      const element = vs[index];
+
+      if(element.isover){
+        const id = element.i;
+        const b = element.blob;
+        element.blob=null;
+        setTimeout(()=> func(id,b));
+        
+      }
+      else{
+        cursor=index;
+
+
+        while(count < maxCount){
+          count++;
+          setTimeout(()=> addload());
+         
+          
+        }
+
+        return;
+      }
+      
+    }
+  };
+
+  const addload=async ()=>{
+
+    if(index >= vs.length || iscanncel()){
+      return;
+    }
+
+    const v = vs[index];
+    index++;
+
+    if(!v){
+      return;
+    }
+
+    try{
+      
+      const res = await fetch(v.v);
+
+      const b = await res.blob();
+      v.blob=b;
+
+    }
+    finally{
+      count--;
+      v.isover=true;
+      setTimeout(()=> start());
+    }
+  };
+
+  
+  setTimeout(()=> start());
+};
+
+
+const resetCanvas = (canvas:HTMLCanvasElement, newheight:number)=>{
+
+  const ctx = canvas.getContext("2d");
+
+  if(!ctx){
+    return;
+  }
+
+
+  const tempCanvas = document.createElement("canvas");
+  tempCanvas.width = canvas.width;
+  tempCanvas.height = canvas.height;
+
+  const tempCtx = tempCanvas.getContext("2d");
+
+  if(! tempCtx){
+    return;
+  }
+
+  tempCtx.drawImage(canvas, 0, 0);
+
+  const oldHeight = canvas.height;
+  canvas.height = oldHeight + newheight;
+
+  ctx.drawImage(tempCanvas, 0, 0);
+};
+
+const imgCoordinates:{id:number, top:number, but:number}[] =[];
+
+let isUnmount = false;
+
+const getCompressedImage = async ()=>{
+
+  const canvas = ref_canvas.value;
+  const ctx = canvas?.getContext("2d");
+
+  let height_count =0;
+  if(!canvas || !ctx){
+    console.log("canvas is null");
+    return;
+  }
+
+
+  startLoad(props.urls, ()=> isUnmount, async(id, b)=>{
+
+    if(!b){
+      return;
+    }
+
+    const img = await createImageBitmap(b);
+
+    let w = img.width;
+
+    let h = img.height;
+
+    const s = canvas.width/w;
+
+    w*=s;
+
+    h*=s;
+
+    w = Math.floor(w);
+
+    h = Math.floor(h);
+
+    if(height_count+h>= canvas.height){
+      
+      resetCanvas(canvas, h*2);
+
+    }
+
+    ctx.drawImage(img,0,height_count , w,h);
+    const top = height_count;
+    height_count+=h;
+
+    const but = height_count;
+
+    imgCoordinates.push({id:id, top, but});
+
+
+  });
+
+};
+
 watch(selectedIndex, newIndex => scrollToSelected(newIndex))
 
 watch(
@@ -184,13 +387,95 @@ watch(
   }
 )
 
+
+const onSetCanvasWidth =(canvas:HTMLCanvasElement)=>{
+  
+  let isTimeout = false;
+
+  let isCall =false;
+  let newwidth:number|null = null;
+  
+
+  setTimeout(()=> {
+
+    isTimeout=true;
+
+    if(!isCall && newwidth){
+      isCall=true;
+      canvas.width=newwidth;
+      getCompressedImage();
+    }
+
+
+  }, 1000);
+  return (width:number)=>{
+    newwidth=width;
+
+    if(isTimeout&& !isCall){
+      isCall=true;
+      canvas.width=newwidth;
+      getCompressedImage();
+    }
+  }
+
+
+};
+
+const onCanvasClick = (e:MouseEvent) => {
+
+  const canvas = ref_canvas.value;
+  if(!canvas){
+    return;
+  }
+
+  const rect = canvas.getBoundingClientRect();
+
+  const scaleX = canvas.width / rect.width;
+  const scaleY = canvas.height / rect.height;
+ 
+  const x = (e.clientX - rect.left) * scaleX;
+  const y = (e.clientY - rect.top) * scaleY;
+
+
+
+  for (const v of imgCoordinates) {
+   
+    if(v.top<= y&& v.but>= y){
+
+      viewUrl.value = props.urls[v.id];
+      selectedIndex.value = v.id;
+      return;
+    }
+  }
+};
+
+
+let observer:ResizeObserver;
 onMounted(() => {
   window.addEventListener('click', handleWindowClick)
+  
+  if(ref_canvas_box.value && ref_canvas.value){
+    
+    const canvas= ref_canvas.value;
+    const setwidth = onSetCanvasWidth(canvas);
+    observer = new ResizeObserver(entries => {
+      const rect = entries[0].contentRect;
+     
+      setwidth(Math.floor(rect.width));
+    });
+
+    observer.observe(ref_canvas_box.value);
+  }
+  else{
+    console.log("ref_canvas is null");
+  }
 })
 
 onBeforeUnmount(() => {
+  isUnmount=true;
   window.removeEventListener('click', handleWindowClick)
   clearAutoPlay()
+  observer?.disconnect();
 })
 </script>
 
@@ -210,16 +495,16 @@ onBeforeUnmount(() => {
             :key="index"
             :class="{ selected: selectedIndex === index }"
             class="viewimage-filelisttree-item"
-            @click="
-              viewUrl = item;
-              selectedIndex = index
-            "
+            @click="viewUrl = item,selectedIndex = index"
             :ref="el => setFileListElement(el, index)"
           >
             {{ item }}
           </li>
         </ul>
       </div>
+    </div>
+    <div class="viewimage-middle" ref="ref_canvas_box">
+      <canvas height="4096" ref="ref_canvas" @click="onCanvasClick"></canvas>
     </div>
     <div class="viewimage-right">
       <img class="viewimage-image" ref="viewContainerRef" :src="viewUrl" />
@@ -246,8 +531,8 @@ onBeforeUnmount(() => {
   right: 0;
   bottom: 0;
   background: #0c0c0c;
-  display: grid;
-  grid-template-columns: 320px 1fr;
+  display: flex;
+  flex-direction: row;
   align-items: stretch;
   z-index: 9999;
   overflow: hidden;
@@ -255,6 +540,7 @@ onBeforeUnmount(() => {
 }
 
 .viewimage-left {
+  flex: 1;
   background: rgba(255, 255, 255, 0.06);
   padding: 12px;
   overflow-y: auto;
@@ -322,7 +608,21 @@ onBeforeUnmount(() => {
   font-weight: 600;
 }
 
+
+
+.viewimage-middle{
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  max-width: 94%;
+  max-height: 94%;
+  min-width: 0;
+}
+
+
 .viewimage-right {
+  flex: 5;
   display: flex;
   flex-direction: column;
   height: 100%;
