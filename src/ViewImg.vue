@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
+import CanvasGallery from './CanvasGallery.vue';
 
 const props = defineProps<{
   url: string
@@ -218,6 +219,29 @@ const compressImage= (file:Blob, maxWidth = 250, quality = 0.8)=> {
   });
 }
 
+const awaitTimeSpan= (n:number)=>{
+  return new Promise<void>((resolve)=>{
+
+    setTimeout(resolve,n);
+  });
+}
+
+const awaitIsLoop=async(iscanncel:()=> boolean)=>{
+
+  while(true){
+    if(iscanncel()){
+      return;
+    }
+
+    if(isViewGrid.value=== false){
+      return;
+    }
+
+    await awaitTimeSpan(1000);
+  }
+
+};
+
 
 const startLoad=async(url_vs:string[], iscanncel:()=> boolean, func:(id:number, blob:Blob)=>void)=>{
 
@@ -261,6 +285,8 @@ const startLoad=async(url_vs:string[], iscanncel:()=> boolean, func:(id:number, 
   };
 
   const addload=async ()=>{
+
+    await awaitIsLoop(iscanncel);
 
     if(index >= vs.length || iscanncel()){
       return;
@@ -477,6 +503,10 @@ onBeforeUnmount(() => {
   clearAutoPlay()
   observer?.disconnect();
 })
+
+
+const isViewGrid = ref(false);
+
 </script>
 
 <template>
@@ -484,6 +514,7 @@ onBeforeUnmount(() => {
     <div class="viewimage-left">
       <div class="viewimage-left-header">
         <div class="viewimage-close" @click="onClose">关闭</div>
+        <div class="viewimage-close" @click="isViewGrid=true">grid</div>
         <button class="viewimage-toggle" @click="toggleCollapse">
           {{ isCollapsed ? '展开列表' : '折叠列表' }}
         </button>
@@ -520,6 +551,9 @@ onBeforeUnmount(() => {
         <button @click="downloadDeleteNameList">下载待删除列表</button>
       </div>
     </div>
+    <div v-if="isViewGrid">
+      <CanvasGallery :urls="urls.map(v=>v)" @on-close="isViewGrid=false" ></CanvasGallery>
+    </div>
   </div>
 </template>
 
@@ -534,7 +568,7 @@ onBeforeUnmount(() => {
   display: flex;
   flex-direction: row;
   align-items: stretch;
-  z-index: 9999;
+  z-index: 9998;
   overflow: hidden;
   color: #e8ecf1;
 }
