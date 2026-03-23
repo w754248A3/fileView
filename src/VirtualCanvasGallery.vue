@@ -55,8 +55,6 @@ const TARGET_COL_WIDTH = 280
 const MIN_COL_WIDTH = 180
 const GUTTER = 12
 const OVERSCAN_PX = 600
-const MAX_ACTIVE_BITMAPS = 18
-
 const containerRef = shallowRef<HTMLDivElement | null>(null)
 const canvasRef = shallowRef<HTMLCanvasElement | null>(null)
 
@@ -81,7 +79,6 @@ const scrollTop = ref(0)
 
 const bitmapCache = new Map<string, ImageBitmap>()
 const inflightLoads = new Map<string, AbortController>()
-const readyQueue: string[] = []
 const imageRects: ImageRect[] = []
 
 let rafId = 0
@@ -179,17 +176,6 @@ const evictBitmap = (url: string) => {
   }
 }
 
-const markBitmapRecentlyUsed = (url: string) => {
-  const index = readyQueue.indexOf(url)
-  if (index >= 0) readyQueue.splice(index, 1)
-  readyQueue.push(url)
-
-  while (readyQueue.length > MAX_ACTIVE_BITMAPS) {
-    const expiredUrl = readyQueue.shift()
-    if (expiredUrl) evictBitmap(expiredUrl)
-  }
-}
-
 const fetchBitmap = async (url: string, signal: AbortSignal) => {
   const response = await fetch(url, { signal, cache: 'no-store' })
   if (!response.ok) {
@@ -235,8 +221,6 @@ const cleanupInvisibleBitmaps = (visibleSet: Set<string>) => {
   for (const url of [...bitmapCache.keys()]) {
     if (!visibleSet.has(url)) {
       evictBitmap(url)
-      const queueIndex = readyQueue.indexOf(url)
-      if (queueIndex >= 0) readyQueue.splice(queueIndex, 1)
     }
   }
 
@@ -262,7 +246,6 @@ const requestBitmapForEntry = async (entry: ImageEntry) => {
     }
 
     bitmapCache.set(entry.url, bitmap)
-    markBitmapRecentlyUsed(entry.url)
     scheduleRender()
   } catch (error) {
     const err = error as Error
@@ -310,7 +293,6 @@ const renderVisible = () => {
 
     if (bitmap) {
       ctx.drawImage(bitmap, rect.x, drawY, rect.w, rect.h)
-      markBitmapRecentlyUsed(entry.url)
       continue
     }
 
@@ -417,7 +399,6 @@ watch(
       bitmap.close()
     }
     bitmapCache.clear()
-    readyQueue.length = 0
 
     entries.value = nextUrls.map(url => ({
       url,
@@ -460,7 +441,6 @@ onUnmounted(() => {
     bitmap.close()
   }
   bitmapCache.clear()
-  readyQueue.length = 0
 
   if (rafId) {
     window.cancelAnimationFrame(rafId)
