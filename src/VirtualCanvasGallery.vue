@@ -166,13 +166,33 @@ const fetchImageNaturalSize = async (url: string, signal: AbortSignal) => {
   return size
 }
 
-const fetchBitmap = async (url: string, signal: AbortSignal) => {
-  const response = await fetch(url, { signal, cache: 'no-store' })
+const fetchBitmap = async (entry: ImageEntry, signal: AbortSignal) => {
+  const response = await fetch(entry.url, { signal, cache: 'no-store' })
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}`)
   }
 
   const blob = await response.blob()
+  const rect = entry.rect
+  if (!rect) {
+    return createImageBitmap(blob)
+  }
+
+  const dpr = window.devicePixelRatio || 1
+  const targetWidth = Math.max(1, Math.round(rect.w * dpr))
+  const targetHeight = Math.max(1, Math.round(rect.h * dpr))
+  const naturalWidth = Math.max(1, Math.round(entry.width))
+  const naturalHeight = Math.max(1, Math.round(entry.height))
+  const shouldResize = naturalWidth > targetWidth || naturalHeight > targetHeight
+
+  if (shouldResize) {
+    return createImageBitmap(blob, {
+      resizeWidth: targetWidth,
+      resizeHeight: targetHeight,
+      resizeQuality: 'high',
+    })
+  }
+
   return createImageBitmap(blob)
 }
 
@@ -333,7 +353,7 @@ const requestBitmapForEntry = async (entry: ImageEntry) => {
   inflightBitmapLoads.set(entry.url, controller)
 
   try {
-    const bitmap = await fetchBitmap(entry.url, controller.signal)
+    const bitmap = await fetchBitmap(entry, controller.signal)
     if (controller.signal.aborted) {
       bitmap.close()
       return
