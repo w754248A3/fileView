@@ -59,7 +59,6 @@ const MAX_ACTIVE_BITMAPS = 18
 
 const containerRef = shallowRef<HTMLDivElement | null>(null)
 const canvasRef = shallowRef<HTMLCanvasElement | null>(null)
-const resizeObserver = shallowRef<ResizeObserver | null>(null)
 
 const entries = ref<ImageEntry[]>(props.urls.map(url => ({
   url,
@@ -75,7 +74,6 @@ const viewportHeight = ref(typeof window !== 'undefined' ? window.innerHeight : 
 const viewportWidth = ref(0)
 const canvasHeight = ref(0)
 const renderStartY = ref(0)
-const renderEndY = ref(0)
 const totalHeight = ref(0)
 const cols = ref(1)
 const colWidth = ref(MIN_COL_WIDTH)
@@ -295,7 +293,6 @@ const renderVisible = () => {
   if (!ctx) return
 
   renderStartY.value = Math.max(0, scrollTop.value - OVERSCAN_PX)
-  renderEndY.value = renderStartY.value + canvasHeight.value
 
   ctx.clearRect(0, 0, viewportWidth.value, canvasHeight.value)
 
@@ -445,20 +442,12 @@ onMounted(async () => {
   await nextTick()
   updateViewport()
 
-  resizeObserver.value = new ResizeObserver(() => {
-    updateViewport()
-  })
-  if (containerRef.value) {
-    resizeObserver.value.observe(containerRef.value)
-  }
-
   window.addEventListener('resize', updateViewport)
   loadMetadata()
   scheduleRender()
 })
 
 onUnmounted(() => {
-  resizeObserver.value?.disconnect()
   window.removeEventListener('resize', updateViewport)
 
   metadataAbortController?.abort()
@@ -484,7 +473,8 @@ onUnmounted(() => {
   position: fixed;
   inset: 0;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: scroll;
+  scrollbar-gutter: stable both-edges;
   background: #f8fafc;
 }
 
