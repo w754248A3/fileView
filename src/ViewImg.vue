@@ -534,9 +534,9 @@ const isViewGrid = ref(false);
         </ul>
       </div>
     </div>
-    <div class="viewimage-middle" ref="ref_canvas_box">
+<!--     <div class="viewimage-middle" ref="ref_canvas_box">
       <canvas height="4096" ref="ref_canvas" @click="onCanvasClick"></canvas>
-    </div>
+    </div> -->
     <div class="viewimage-right">
       <img class="viewimage-image" ref="viewContainerRef" :src="viewUrl" />
 
