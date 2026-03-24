@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, watch, onMounted, onBeforeUnmount } from 'vue'
-import CanvasGallery from './CanvasGallery.vue';
+import VirtualCanvasGallery from './VirtualCanvasGallery.vue';
 
 const props = defineProps<{
   url: string
@@ -552,7 +552,7 @@ const isViewGrid = ref(false);
       </div>
     </div>
     <div v-if="isViewGrid">
-      <CanvasGallery :urls="urls.map(v=>v)" @on-close="isViewGrid=false" ></CanvasGallery>
+      <VirtualCanvasGallery :urls="urls.map(v=>v)" @on-close="isViewGrid=false" ></VirtualCanvasGallery>
     </div>
   </div>
 </template>
